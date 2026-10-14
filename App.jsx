@@ -3,8 +3,22 @@ import React from "react";
 import Login from "./Login";
 import StudentRegistration from "./StudentRegistration";
 
-const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net";
+function normalizeApiBaseUrl(rawUrl) {
+  if (!rawUrl) {
+    return "https://student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net";
+  }
+
+  if (!/^https?:\/\//i.test(rawUrl)) {
+    return `https://${rawUrl.replace(/^\/+/, "")}`;
+  }
+
+  return rawUrl.replace(/\/+$/, "");
+}
+
+const apiBaseUrl = normalizeApiBaseUrl(
+  import.meta.env.VITE_API_BASE_URL ||
+    "student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net"
+);
 
 const apiUrl = `${apiBaseUrl}/api/Students`;
 const loginUrl = `${apiBaseUrl}/api/Auth/login`;
@@ -193,13 +207,25 @@ export default function App() {
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data = {};
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = {
+          message:
+            responseText ||
+            "The server returned an unexpected response.",
+        };
+      }
 
       console.log("LOGIN RESPONSE:", data);
 
       if (!response.ok) {
         throw new Error(
           data?.message ||
+            data?.title ||
             "Email or password is incorrect."
         );
       }
