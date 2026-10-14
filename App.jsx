@@ -4,7 +4,7 @@ import Login from "./Login";
 import StudentRegistration from "./StudentRegistration";
 
 const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || "https://localhost:7178";
+  import.meta.env.VITE_API_BASE_URL || "student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net";
 
 const apiUrl = `${apiBaseUrl}/api/Students`;
 const loginUrl = `${apiBaseUrl}/api/Auth/login`;
