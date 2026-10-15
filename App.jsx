@@ -1,35 +1,46 @@
-import { useEffect, useRef, useState } from "react";
-import React from "react";
+
+import React, { useEffect, useRef, useState } from "react";
 import Login from "./Login";
 import StudentRegistration from "./StudentRegistration";
 
+// =========================================================
+// API CONFIGURATION
+// =========================================================
+
 function normalizeApiBaseUrl(rawUrl) {
-  if (!rawUrl) {
-    return "https://student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net";
+  const defaultUrl =
+    "https://student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net";
+
+  let url = (rawUrl || defaultUrl).trim();
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url.replace(/^\/+/, "")}`;
   }
 
-  if (!/^https?:\/\//i.test(rawUrl)) {
-    return `https://${rawUrl.replace(/^\/+/, "")}`;
-  }
+  // Remove trailing slashes.
+  url = url.replace(/\/+$/, "");
 
-  return rawUrl.replace(/\/+$/, "");
+  // Remove a trailing /api if the environment variable contains it.
+  // This prevents /api/api/ in API requests.
+  url = url.replace(/\/api$/i, "");
+
+  return url;
 }
 
 const apiBaseUrl = normalizeApiBaseUrl(
-  import.meta.env.VITE_API_BASE_URL ||
-    "student-registration-api-sushma-f3c7cbfgf5c0afa7.indiasouthcentral-01.azurewebsites.net"
+  import.meta.env.VITE_API_BASE_URL
 );
 
 const apiUrl = `${apiBaseUrl}/api/Students`;
 const loginUrl = `${apiBaseUrl}/api/Auth/login`;
 const teacherUrl = `${apiBaseUrl}/api/Users/create-teacher`;
 
+// =========================================================
+// APP
+// =========================================================
+
 export default function App() {
-
-  // =========================================================
   // PAGE
-  // =========================================================
-
   const [page, setPage] = useState(() =>
     localStorage.getItem("token") &&
     localStorage.getItem("role")
@@ -37,17 +48,12 @@ export default function App() {
       : "register"
   );
 
-  // =========================================================
   // USER
-  // =========================================================
-
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
 
-    if (!token || !role) {
-      return null;
-    }
+    if (!token || !role) return null;
 
     return {
       token,
@@ -56,58 +62,38 @@ export default function App() {
       fullName: localStorage.getItem("fullName") || "",
       email: localStorage.getItem("email") || "",
       age: localStorage.getItem("age") || "",
-      mobileNumber:
-        localStorage.getItem("mobileNumber") || "",
+      mobileNumber: localStorage.getItem("mobileNumber") || "",
       course: localStorage.getItem("course") || "",
     };
   });
 
-  // =========================================================
   // STUDENT PROFILE
-  // =========================================================
-
   const [studentProfile, setStudentProfile] = useState(() => ({
     fullName: localStorage.getItem("fullName") || "",
     email: localStorage.getItem("email") || "",
     role: localStorage.getItem("role") || "",
     age: localStorage.getItem("age") || "",
-    mobileNumber:
-      localStorage.getItem("mobileNumber") || "",
+    mobileNumber: localStorage.getItem("mobileNumber") || "",
     course: localStorage.getItem("course") || "",
   }));
 
-  // =========================================================
   // STUDENTS
-  // =========================================================
-
   const [students, setStudents] = useState([]);
-  const [loadingStudents, setLoadingStudents] =
-    useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [editingStudent, setEditingStudent] = useState(null);
 
-  const [editingStudent, setEditingStudent] =
-    useState(null);
-
-  // =========================================================
   // TEACHER
-  // =========================================================
-
   const [teacherForm, setTeacherForm] = useState({
     fullName: "",
     email: "",
     password: "",
   });
 
-  const [creatingTeacher, setCreatingTeacher] =
-    useState(false);
-
+  const [creatingTeacher, setCreatingTeacher] = useState(false);
   const [message, setMessage] = useState("");
-
   const editFormRef = useRef(null);
 
-  // =========================================================
-  // SCROLL TO EDIT FORM
-  // =========================================================
-
+  // Scroll to the edit form when a student is selected.
   useEffect(() => {
     if (editingStudent) {
       editFormRef.current?.scrollIntoView({
@@ -117,18 +103,11 @@ export default function App() {
     }
   }, [editingStudent?.studentId]);
 
-  // =========================================================
-  // LOAD STUDENTS FOR ADMIN / TEACHER
-  // =========================================================
-
+  // Load students for Admin and Teacher.
   useEffect(() => {
-    if (!user?.token) {
-      return;
-    }
-
     if (
-      user.role === "Admin" ||
-      user.role === "Teacher"
+      user?.token &&
+      ["Admin", "Teacher"].includes(user.role)
     ) {
       void loadStudents(user.token);
     }
@@ -156,34 +135,26 @@ export default function App() {
       });
 
       if (!response.ok) {
-        let errorMessage =
-          `Registration failed. Status: ${response.status}`;
+        const responseText = await response.text();
+        let errorMessage = `Registration failed. Status: ${response.status}`;
 
         try {
-          const responseText = await response.text();
-
-          let errorData = null;
-
-          try {
-            errorData = JSON.parse(responseText);
-          } catch {}
-
-          if (errorData?.message) {
-            errorMessage = errorData.message;
-          }
-
-          if (errorData?.title) {
-            errorMessage = errorData.title;
-          }
-        } catch {}
+          const data = JSON.parse(responseText);
+          errorMessage =
+            data.message ||
+            data.title ||
+            errorMessage;
+        } catch {
+          if (responseText) errorMessage = responseText;
+        }
 
         throw new Error(errorMessage);
       }
 
+      setMessage("");
       setPage("login");
     } catch (error) {
       console.error("Registration error:", error);
-
       throw new Error(
         error.message || "Unable to register student."
       );
@@ -196,6 +167,8 @@ export default function App() {
 
   async function handleLogin(loginDetails) {
     try {
+      console.log("Login URL:", loginUrl);
+
       const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
@@ -220,115 +193,54 @@ export default function App() {
         };
       }
 
-      console.log("LOGIN RESPONSE:", data);
+      console.log("Login status:", response.status);
+      console.log("Login response:", data);
 
       if (!response.ok) {
         throw new Error(
-          data?.message ||
-            data?.title ||
-            "Email or password is incorrect."
+          data.message ||
+          data.title ||
+          `Login failed. HTTP status: ${response.status}`
         );
       }
 
-      if (
-        !["Admin", "Teacher", "Student"].includes(
-          data.role
-        )
-      ) {
-        throw new Error(
-          "The account has an unsupported role."
-        );
+      if (!["Admin", "Teacher", "Student"].includes(data.role)) {
+        throw new Error("The account has an unsupported role.");
       }
 
-      // =====================================================
-      // SAVE LOGIN DETAILS
-      // =====================================================
+      if (!data.token) {
+        throw new Error("The server did not return an authentication token.");
+      }
 
-      localStorage.setItem(
-        "token",
-        data.token ?? ""
-      );
-
-      localStorage.setItem(
-        "role",
-        data.role ?? ""
-      );
-
-      localStorage.setItem(
-        "studentId",
-        data.studentId ?? ""
-      );
-
-      localStorage.setItem(
-        "fullName",
-        data.fullName ?? ""
-      );
-
-      localStorage.setItem(
-        "email",
-        data.email ?? ""
-      );
-
-      // =====================================================
-      // SAVE AGE
-      // =====================================================
-
-      localStorage.setItem(
-        "age",
-        data.age ?? ""
-      );
-
-      // =====================================================
-      // SAVE MOBILE NUMBER
-      // =====================================================
-
-      localStorage.setItem(
-        "mobileNumber",
-        data.mobileNumber ?? ""
-      );
-
-      // =====================================================
-      // SAVE COURSE
-      // =====================================================
-
-      localStorage.setItem(
-        "course",
-        data.course ?? ""
-      );
-
-      // =====================================================
-      // CREATE USER OBJECT
-      // =====================================================
-
+      // Save login details.
       const loggedInUser = {
-        token: data.token ?? "",
-        role: data.role ?? "",
+        token: data.token,
+        role: data.role,
         studentId: data.studentId ?? "",
         fullName: data.fullName ?? "",
-        email: data.email ?? "",
+        email: data.email ?? loginDetails.email.trim(),
         age: data.age ?? "",
         mobileNumber: data.mobileNumber ?? "",
         course: data.course ?? "",
       };
 
-      setUser(loggedInUser);
-
-      // =====================================================
-      // CREATE STUDENT PROFILE
-      // =====================================================
-
-      setStudentProfile({
-        fullName: data.fullName ?? "",
-        email: data.email ?? "",
-        role: data.role ?? "",
-        age: data.age ?? "",
-        mobileNumber: data.mobileNumber ?? "",
-        course: data.course ?? "",
+      Object.entries(loggedInUser).forEach(([key, value]) => {
+        localStorage.setItem(key, String(value ?? ""));
       });
 
-      setPage("dashboard");
-      setMessage("");
+      setUser(loggedInUser);
 
+      setStudentProfile({
+        fullName: loggedInUser.fullName,
+        email: loggedInUser.email,
+        role: loggedInUser.role,
+        age: loggedInUser.age,
+        mobileNumber: loggedInUser.mobileNumber,
+        course: loggedInUser.course,
+      });
+
+      setMessage("");
+      setPage("dashboard");
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -379,31 +291,19 @@ export default function App() {
 
       if (!response.ok) {
         throw new Error(
-          "Failed to load students."
+          `Failed to load students. HTTP status: ${response.status}`
         );
       }
 
       const data = await response.json();
-
-      setStudents(
-        Array.isArray(data) ? data : []
-      );
+      setStudents(Array.isArray(data) ? data : []);
 
       if (successMessage) {
         setMessage(successMessage);
       }
-
     } catch (error) {
-      console.error(
-        "Load students error:",
-        error
-      );
-
-      setMessage(
-        error.message ||
-          "Unable to load students."
-      );
-
+      console.error("Load students error:", error);
+      setMessage(error.message || "Unable to load students.");
     } finally {
       setLoadingStudents(false);
     }
@@ -428,20 +328,16 @@ export default function App() {
 
   async function createTeacher(event) {
     event.preventDefault();
-
     setCreatingTeacher(true);
     setMessage("");
 
     try {
-      const token =
-        user?.token ||
-        localStorage.getItem("token");
+      const token = user?.token || localStorage.getItem("token");
 
       if (!token) {
-        setMessage(
+        throw new Error(
           "Authentication token not found. Please login again."
         );
-        return;
       }
 
       const response = await fetch(teacherUrl, {
@@ -453,25 +349,17 @@ export default function App() {
         body: JSON.stringify(teacherForm),
       });
 
-      const responseText =
-        await response.text();
-
+      const responseText = await response.text();
       let result = {};
 
       try {
-        result = responseText
-          ? JSON.parse(responseText)
-          : {};
+        result = responseText ? JSON.parse(responseText) : {};
       } catch {
-        result = {
-          message: responseText,
-        };
+        result = { message: responseText };
       }
 
       if (response.status === 401) {
-        throw new Error(
-          "401 Unauthorized: Please login again."
-        );
+        throw new Error("401 Unauthorized: Please login again.");
       }
 
       if (response.status === 403) {
@@ -483,8 +371,8 @@ export default function App() {
       if (!response.ok) {
         throw new Error(
           result.message ||
-            result.title ||
-            `Teacher creation failed (${response.status}).`
+          result.title ||
+          `Teacher creation failed (${response.status}).`
         );
       }
 
@@ -494,28 +382,19 @@ export default function App() {
         password: "",
       });
 
-      setMessage(
-        "Teacher account created successfully."
-      );
-
+      setMessage("Teacher account created successfully.");
     } catch (error) {
-      console.error(
-        "Create teacher error:",
-        error
-      );
-
+      console.error("Create teacher error:", error);
       setMessage(
-        error.message ||
-          "Unable to create teacher account."
+        error.message || "Unable to create teacher account."
       );
-
     } finally {
       setCreatingTeacher(false);
     }
   }
 
   // =========================================================
-  // START EDIT
+  // EDIT STUDENT
   // =========================================================
 
   function startEdit(student) {
@@ -523,19 +402,14 @@ export default function App() {
       studentId: student.studentId,
       fullName: student.fullName || "",
       email: student.email || "",
-      password: student.password || "",
+      password: "",
       age: student.age ?? "",
-      mobileNumber:
-        student.mobileNumber || "",
+      mobileNumber: student.mobileNumber || "",
       course: student.course || "",
     });
 
     setMessage("");
   }
-
-  // =========================================================
-  // EDIT CHANGE
-  // =========================================================
 
   function handleEditChange(event) {
     const { name, value } = event.target;
@@ -556,143 +430,76 @@ export default function App() {
     try {
       setMessage("");
 
-      const token =
-        user?.token ||
-        localStorage.getItem("token");
+      const token = user?.token || localStorage.getItem("token");
 
       if (!token) {
-        setMessage(
-          "Authentication token not found. Please logout and login again."
+        throw new Error(
+          "Authentication token not found. Please login again."
         );
-        return;
       }
 
       if (!editingStudent?.studentId) {
-        setMessage(
-          "Student ID is missing."
-        );
-        return;
+        throw new Error("Student ID is missing.");
       }
 
       const updateUrl =
         `${apiUrl}/${editingStudent.studentId}`;
 
       const updateData = {
-        fullName:
-          editingStudent.fullName,
-
-        email:
-          editingStudent.email,
-
-        password:
-          editingStudent.password,
-
-        age: Number(
-          editingStudent.age
-        ),
-
-        mobileNumber:
-          editingStudent.mobileNumber,
-
-        course:
-          editingStudent.course,
+        fullName: editingStudent.fullName,
+        email: editingStudent.email,
+        age: Number(editingStudent.age),
+        mobileNumber: editingStudent.mobileNumber,
+        course: editingStudent.course,
       };
 
-      console.log(
-        "PUT URL:",
-        updateUrl
-      );
+      // Send a password only if a new one was entered.
+      if (editingStudent.password.trim()) {
+        updateData.password = editingStudent.password;
+      }
 
-      console.log(
-        "PUT data:",
-        updateData
-      );
+      console.log("PUT URL:", updateUrl);
 
-      const response = await fetch(
-        updateUrl,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${token}`,
-          },
-
-          body: JSON.stringify(
-            updateData
-          ),
-        }
-      );
+      const response = await fetch(updateUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
 
       if (response.status === 401) {
-        setMessage(
-          "401 Unauthorized: Your JWT token is invalid or expired. Please logout and login again."
+        throw new Error(
+          "401 Unauthorized: Please logout and login again."
         );
-        return;
       }
 
       if (response.status === 403) {
-        setMessage(
-          "403 Forbidden: Your account does not have permission to update students."
+        throw new Error(
+          "403 Forbidden: You do not have permission to update students."
         );
-        return;
       }
 
       if (!response.ok) {
-        let errorMessage =
-          "Failed to update student.";
+        const responseText = await response.text();
+        let errorMessage = "Failed to update student.";
 
         try {
-          const responseText =
-            await response.text();
+          const data = JSON.parse(responseText);
+          errorMessage = data.message || data.title || errorMessage;
+        } catch {
+          if (responseText) errorMessage = responseText;
+        }
 
-          if (responseText) {
-            try {
-              const data =
-                JSON.parse(responseText);
-
-              if (data?.message) {
-                errorMessage =
-                  data.message;
-              } else if (
-                data?.title
-              ) {
-                errorMessage =
-                  data.title;
-              }
-
-            } catch {
-              errorMessage =
-                responseText;
-            }
-          }
-
-        } catch {}
-
-        throw new Error(
-          errorMessage
-        );
+        throw new Error(errorMessage);
       }
 
       setEditingStudent(null);
-
-      await loadStudents(
-        token,
-        "Student updated successfully."
-      );
-
+      await loadStudents(token, "Student updated successfully.");
     } catch (error) {
-      console.error(
-        "Update student error:",
-        error
-      );
-
-      setMessage(
-        error.message ||
-          "Unable to update student."
-      );
+      console.error("Update student error:", error);
+      setMessage(error.message || "Unable to update student.");
     }
   }
 
@@ -701,93 +508,61 @@ export default function App() {
   // =========================================================
 
   async function deleteStudent(id) {
-
-    const confirmed =
-      window.confirm(
+    if (
+      !window.confirm(
         "Are you sure you want to delete this student?"
-      );
-
-    if (!confirmed) {
+      )
+    ) {
       return;
     }
 
     try {
       setMessage("");
 
-      const token =
-        user?.token ||
-        localStorage.getItem("token");
+      const token = user?.token || localStorage.getItem("token");
 
       if (!token) {
-        setMessage(
+        throw new Error(
           "Authentication token not found. Please login again."
         );
-        return;
       }
 
-      const response =
-        await fetch(
-          `${apiUrl}/${id}`,
-          {
-            method: "DELETE",
-
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
-        );
+      const response = await fetch(`${apiUrl}/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.status === 401) {
-        setMessage(
+        throw new Error(
           "401 Unauthorized: Your JWT token is invalid or expired."
         );
-        return;
       }
 
       if (response.status === 403) {
-        setMessage(
-          "Only Admin users can delete students."
-        );
-        return;
+        throw new Error("Only Admin users can delete students.");
       }
 
       if (!response.ok) {
-        let errorMessage =
-          "Failed to delete student.";
+        const responseText = await response.text();
+        let errorMessage = "Failed to delete student.";
 
         try {
-          const data =
-            await response.json();
+          const data = JSON.parse(responseText);
+          errorMessage = data.message || data.title || errorMessage;
+        } catch {
+          if (responseText) errorMessage = responseText;
+        }
 
-          if (data?.message) {
-            errorMessage =
-              data.message;
-          }
-
-        } catch {}
-
-        throw new Error(
-          errorMessage
-        );
+        throw new Error(errorMessage);
       }
 
-      setMessage(
-        "Student deleted successfully."
-      );
-
-      await loadStudents(token);
-
+      setEditingStudent(null);
+      await loadStudents(token, "Student deleted successfully.");
     } catch (error) {
-      console.error(
-        "Delete student error:",
-        error
-      );
-
-      setMessage(
-        error.message ||
-          "Unable to delete student."
-      );
+      console.error("Delete student error:", error);
+      setMessage(error.message || "Unable to delete student.");
     }
   }
 
@@ -796,15 +571,16 @@ export default function App() {
   // =========================================================
 
   function logout() {
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("studentId");
-    localStorage.removeItem("fullName");
-    localStorage.removeItem("email");
-    localStorage.removeItem("age");
-    localStorage.removeItem("mobileNumber");
-    localStorage.removeItem("course");
+    [
+      "token",
+      "role",
+      "studentId",
+      "fullName",
+      "email",
+      "age",
+      "mobileNumber",
+      "course",
+    ].forEach((key) => localStorage.removeItem(key));
 
     setUser(null);
 
@@ -819,7 +595,6 @@ export default function App() {
 
     setStudents([]);
     setEditingStudent(null);
-
     setTeacherForm({
       fullName: "",
       email: "",
@@ -831,16 +606,14 @@ export default function App() {
   }
 
   // =========================================================
-  // REGISTER PAGE
+  // REGISTRATION PAGE
   // =========================================================
 
   if (page === "register" && !user) {
     return (
       <StudentRegistration
         onRegistered={handleRegistration}
-        onLogin={() =>
-          setPage("login")
-        }
+        onLogin={() => setPage("login")}
       />
     );
   }
@@ -853,9 +626,7 @@ export default function App() {
     return (
       <Login
         onSubmit={handleLogin}
-        onRegister={() =>
-          setPage("register")
-        }
+        onRegister={() => setPage("register")}
       />
     );
   }
@@ -865,25 +636,16 @@ export default function App() {
   // =========================================================
 
   if (page === "dashboard" && user) {
+    const isAdmin = user.role === "Admin";
+    const isTeacher = user.role === "Teacher";
+    const isStudent = user.role === "Student";
+    const canManageStudents = isAdmin || isTeacher;
 
-    const isAdmin =
-      user.role === "Admin";
-
-    const isTeacher =
-      user.role === "Teacher";
-
-    const isStudent =
-      user.role === "Student";
-
-    const canManageStudents =
-      isAdmin || isTeacher;
-
-    const dashboardTitle =
-      isAdmin
-        ? "Admin Dashboard"
-        : isTeacher
-          ? "Teacher Dashboard"
-          : "Student Dashboard";
+    const dashboardTitle = isAdmin
+      ? "Admin Dashboard"
+      : isTeacher
+        ? "Teacher Dashboard"
+        : "Student Dashboard";
 
     return (
       <main
@@ -891,783 +653,311 @@ export default function App() {
           minHeight: "100vh",
           padding: "30px",
           background: "#f5f7fb",
-          fontFamily:
-            "Arial, sans-serif",
+          fontFamily: "Arial, sans-serif",
         }}
       >
-
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-          }}
-        >
-
-          {/* =====================================================
-              HEADER
-          ===================================================== */}
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "center",
-              marginBottom: "25px",
-              background: "#ffffff",
-              padding: "20px",
-              borderRadius: "12px",
-            }}
-          >
-
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          {/* HEADER */}
+          <div style={cardStyle}>
             <div>
-
-              <h1
-                style={{
-                  margin:
-                    "0 0 8px",
-                }}
-              >
+              <h1 style={{ margin: "0 0 8px" }}>
                 {dashboardTitle}
               </h1>
-
-              <p
-                style={{
-                  margin: 0,
-                }}
-              >
-                Welcome{" "}
-                <strong>
-                  {user.fullName}
-                </strong>
+              <p style={{ margin: 0 }}>
+                Welcome <strong>{user.fullName}</strong>
               </p>
-
-              <p
-                style={{
-                  margin:
-                    "6px 0 0",
-                }}
-              >
-                Role:{" "}
-                <strong>
-                  {user.role}
-                </strong>
+              <p style={{ margin: "6px 0 0" }}>
+                Role: <strong>{user.role}</strong>
               </p>
-
             </div>
 
-            <button
-              onClick={logout}
-              style={{
-                padding:
-                  "10px 18px",
-                border: "none",
-                borderRadius: "6px",
-                cursor:
-                  "pointer",
-              }}
-            >
+            <button onClick={logout} style={buttonStyle}>
               Logout
             </button>
-
           </div>
 
-          {/* =====================================================
-              MESSAGE
-          ===================================================== */}
-
+          {/* MESSAGE */}
           {message && (
-            <div
-              style={{
-                marginBottom:
-                  "20px",
-                padding: "12px",
-                background:
-                  "#ffffff",
-                borderRadius: "8px",
-              }}
-            >
+            <div style={{ ...cardStyle, marginTop: "20px" }}>
               {message}
             </div>
           )}
 
-          {/* =====================================================
-              ADMIN / TEACHER STUDENT RECORDS
-          ===================================================== */}
-
+          {/* ADMIN / TEACHER STUDENT RECORDS */}
           {canManageStudents && (
-            <div
-              style={{
-                background:
-                  "#ffffff",
-                padding: "20px",
-                borderRadius:
-                  "12px",
-                marginBottom:
-                  "25px",
-              }}
-            >
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems:
-                    "center",
-                  marginBottom:
-                    "20px",
-                }}
-              >
-
-                <h2
-                  style={{
-                    margin: 0,
-                  }}
-                >
-                  Student Records
-                </h2>
-
+            <section style={{ ...cardStyle, marginTop: "25px" }}>
+              <div style={sectionHeaderStyle}>
+                <h2 style={{ margin: 0 }}>Student Records</h2>
                 <button
-                  onClick={() =>
-                    loadStudents()
-                  }
-                  disabled={
-                    loadingStudents
-                  }
-                  style={{
-                    padding:
-                      "10px 18px",
-                    cursor:
-                      loadingStudents
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
+                  onClick={() => loadStudents()}
+                  disabled={loadingStudents}
+                  style={buttonStyle}
                 >
-                  {loadingStudents
-                    ? "Loading..."
-                    : "View Students"}
+                  {loadingStudents ? "Loading..." : "View Students"}
                 </button>
-
               </div>
 
               {loadingStudents ? (
-                <p>
-                  Loading students
-                  from database...
-                </p>
-
-              ) : students.length ===
-                0 ? (
-
-                <p>
-                  No student
-                  records found
-                  in the database.
-                </p>
-
+                <p>Loading students from database...</p>
+              ) : students.length === 0 ? (
+                <p>No student records found in the database.</p>
               ) : (
-
-                <div
-                  style={{
-                    overflowX:
-                      "auto",
-                  }}
-                >
-
+                <div style={{ overflowX: "auto" }}>
                   <table
                     style={{
-                      width:
-                        "100%",
-                      borderCollapse:
-                        "collapse",
+                      width: "100%",
+                      borderCollapse: "collapse",
                     }}
                   >
-
                     <thead>
-
                       <tr>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          ID
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Full Name
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Email
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Age
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Mobile
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Course
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Role
-                        </th>
-
-                        <th
-                          style={
-                            tableHeaderStyle
-                          }
-                        >
-                          Actions
-                        </th>
-
+                        {[
+                          "ID",
+                          "Full Name",
+                          "Email",
+                          "Age",
+                          "Mobile",
+                          "Course",
+                          "Role",
+                          "Actions",
+                        ].map((heading) => (
+                          <th key={heading} style={tableHeaderStyle}>
+                            {heading}
+                          </th>
+                        ))}
                       </tr>
-
                     </thead>
 
                     <tbody>
-
-                      {students.map(
-                        (student) => (
-
-                          <tr
-                            key={
-                              student.studentId
-                            }
+                      {students.map((student) => (
+                        <tr key={student.studentId}>
+                          <td style={tableCellStyle}>
+                            {student.studentId}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.fullName}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.email}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.age}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.mobileNumber}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.course}
+                          </td>
+                          <td style={tableCellStyle}>
+                            {student.role}
+                          </td>
+                          <td
+                            style={{
+                              ...tableCellStyle,
+                              whiteSpace: "nowrap",
+                            }}
                           >
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
+                            <button
+                              onClick={() => startEdit(student)}
+                              style={{ ...buttonStyle, marginRight: "8px" }}
                             >
-                              {
-                                student.studentId
-                              }
-                            </td>
+                              Update
+                            </button>
 
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.fullName
-                              }
-                            </td>
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.email
-                              }
-                            </td>
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.age
-                              }
-                            </td>
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.mobileNumber
-                              }
-                            </td>
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.course
-                              }
-                            </td>
-
-                            <td
-                              style={
-                                tableCellStyle
-                              }
-                            >
-                              {
-                                student.role
-                              }
-                            </td>
-
-                            <td
-                              style={{
-                                ...tableCellStyle,
-                                whiteSpace:
-                                  "nowrap",
-                              }}
-                            >
-
+                            {isAdmin && (
                               <button
                                 onClick={() =>
-                                  startEdit(
-                                    student
-                                  )
+                                  deleteStudent(student.studentId)
                                 }
-                                style={{
-                                  marginRight:
-                                    "8px",
-                                  padding:
-                                    "7px 12px",
-                                  cursor:
-                                    "pointer",
-                                }}
+                                style={buttonStyle}
                               >
-                                Update
+                                Delete
                               </button>
-
-                              {isAdmin && (
-                                <button
-                                  onClick={() =>
-                                    deleteStudent(
-                                      student.studentId
-                                    )
-                                  }
-                                  style={{
-                                    padding:
-                                      "7px 12px",
-                                    cursor:
-                                      "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              )}
-
-                            </td>
-
-                          </tr>
-
-                        )
-                      )}
-
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
-
                   </table>
-
                 </div>
               )}
-
-            </div>
+            </section>
           )}
 
-          {/* =====================================================
-              STUDENT ACCOUNT
-          ===================================================== */}
-
+          {/* STUDENT ACCOUNT */}
           {isStudent && (
-            <div
-              style={{
-                background:
-                  "#ffffff",
-                padding: "25px",
-                borderRadius:
-                  "12px",
-              }}
-            >
-
-              <h2>
-                My Account
-              </h2>
-
+            <section style={{ ...cardStyle, marginTop: "25px" }}>
+              <h2>My Account</h2>
               <p>
                 <strong>Name:</strong>{" "}
-                {studentProfile.fullName ||
-                  user.fullName}
+                {studentProfile.fullName || user.fullName}
               </p>
-
               <p>
                 <strong>Email:</strong>{" "}
-                {studentProfile.email ||
-                  user.email}
+                {studentProfile.email || user.email}
               </p>
-
               <p>
                 <strong>Role:</strong>{" "}
-                {studentProfile.role ||
-                  user.role}
+                {studentProfile.role || user.role}
               </p>
-
               <p>
                 <strong>Course:</strong>{" "}
-                {studentProfile.course ||
-                  user.course}
+                {studentProfile.course || user.course}
               </p>
-
               <p>
                 <strong>Age:</strong>{" "}
-                {studentProfile.age ||
-                  user.age}
+                {studentProfile.age || user.age}
               </p>
-
               <p>
-                <strong>
-                  Mobile Number:
-                </strong>{" "}
-                {studentProfile.mobileNumber ||
-                  user.mobileNumber}
+                <strong>Mobile Number:</strong>{" "}
+                {studentProfile.mobileNumber || user.mobileNumber}
               </p>
-
-            </div>
+            </section>
           )}
 
-          {/* =====================================================
-              ADMIN CREATE TEACHER
-          ===================================================== */}
-
+          {/* ADMIN CREATE TEACHER */}
           {isAdmin && (
-            <section
-              style={{
-                background:
-                  "#ffffff",
-                padding: "20px",
-                borderRadius:
-                  "12px",
-                marginBottom:
-                  "25px",
-              }}
-            >
+            <section style={{ ...cardStyle, marginTop: "25px" }}>
+              <h2>Create Teacher</h2>
+              <p>Create a Teacher account from the Admin Dashboard.</p>
 
-              <h2>
-                Create Teacher
-              </h2>
-
-              <p>
-                Create a Teacher
-                account from
-                the Admin
-                Dashboard.
-              </p>
-
-              <form
-                onSubmit={
-                  createTeacher
-                }
-              >
-
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(190px, 1fr))",
-                    gap: "15px",
-                  }}
-                >
-
+              <form onSubmit={createTeacher}>
+                <div style={formGridStyle}>
                   <input
                     name="fullName"
-                    value={
-                      teacherForm.fullName
-                    }
-                    onChange={
-                      handleTeacherChange
-                    }
+                    value={teacherForm.fullName}
+                    onChange={handleTeacherChange}
                     placeholder="Full Name"
                     autoComplete="name"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="email"
                     type="email"
-                    value={
-                      teacherForm.email
-                    }
-                    onChange={
-                      handleTeacherChange
-                    }
+                    value={teacherForm.email}
+                    onChange={handleTeacherChange}
                     placeholder="Email"
                     autoComplete="email"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="password"
                     type="password"
-                    value={
-                      teacherForm.password
-                    }
-                    onChange={
-                      handleTeacherChange
-                    }
+                    value={teacherForm.password}
+                    onChange={handleTeacherChange}
                     placeholder="Password"
                     autoComplete="new-password"
                     minLength={8}
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
-
                 </div>
 
                 <button
                   type="submit"
-                  disabled={
-                    creatingTeacher
-                  }
-                  style={{
-                    marginTop:
-                      "16px",
-                    padding:
-                      "10px 18px",
-                    cursor:
-                      creatingTeacher
-                        ? "not-allowed"
-                        : "pointer",
-                  }}
+                  disabled={creatingTeacher}
+                  style={{ ...buttonStyle, marginTop: "16px" }}
                 >
-                  {creatingTeacher
-                    ? "Creating..."
-                    : "Create Teacher"}
+                  {creatingTeacher ? "Creating..." : "Create Teacher"}
                 </button>
-
               </form>
-
             </section>
           )}
 
-          {/* =====================================================
-              UPDATE STUDENT
-          ===================================================== */}
-
+          {/* UPDATE STUDENT */}
           {editingStudent && (
-            <div
+            <section
               ref={editFormRef}
-              style={{
-                background:
-                  "#ffffff",
-                padding: "25px",
-                borderRadius:
-                  "12px",
-                marginTop:
-                  "25px",
-              }}
+              style={{ ...cardStyle, marginTop: "25px" }}
             >
+              <h2>Update Student</h2>
+              <p>Editing {editingStudent.fullName}</p>
 
-              <h2>
-                Update Student
-              </h2>
-
-              <p>
-                Editing{" "}
-                {
-                  editingStudent.fullName
-                }
-              </p>
-
-              <form
-                onSubmit={
-                  updateStudent
-                }
-              >
-
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gridTemplateColumns:
-                      "repeat(2, minmax(0, 1fr))",
-                    gap: "15px",
-                  }}
-                >
-
+              <form onSubmit={updateStudent}>
+                <div style={formGridStyle}>
                   <input
                     name="fullName"
-                    value={
-                      editingStudent.fullName
-                    }
-                    onChange={
-                      handleEditChange
-                    }
+                    value={editingStudent.fullName}
+                    onChange={handleEditChange}
                     placeholder="Full Name"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="email"
                     type="email"
-                    value={
-                      editingStudent.email
-                    }
-                    onChange={
-                      handleEditChange
-                    }
+                    value={editingStudent.email}
+                    onChange={handleEditChange}
                     placeholder="Email"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="password"
                     type="password"
-                    value={
-                      editingStudent.password
-                    }
-                    onChange={
-                      handleEditChange
-                    }
-                    placeholder="Password"
-                    required
-                    style={
-                      inputStyle
-                    }
+                    value={editingStudent.password}
+                    onChange={handleEditChange}
+                    placeholder="New password (optional)"
+                    autoComplete="new-password"
+                    style={inputStyle}
                   />
 
                   <input
                     name="age"
                     type="number"
-                    value={
-                      editingStudent.age
-                    }
-                    onChange={
-                      handleEditChange
-                    }
+                    value={editingStudent.age}
+                    onChange={handleEditChange}
                     placeholder="Age"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="mobileNumber"
-                    value={
-                      editingStudent.mobileNumber
-                    }
-                    onChange={
-                      handleEditChange
-                    }
+                    value={editingStudent.mobileNumber}
+                    onChange={handleEditChange}
                     placeholder="Mobile Number"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
 
                   <input
                     name="course"
-                    value={
-                      editingStudent.course
-                    }
-                    onChange={
-                      handleEditChange
-                    }
+                    value={editingStudent.course}
+                    onChange={handleEditChange}
                     placeholder="Course"
                     required
-                    style={
-                      inputStyle
-                    }
+                    style={inputStyle}
                   />
-
                 </div>
 
-                <div
-                  style={{
-                    marginTop:
-                      "20px",
-                  }}
-                >
-
+                <div style={{ marginTop: "20px" }}>
                   <button
                     type="submit"
-                    style={{
-                      marginRight:
-                        "10px",
-                      padding:
-                        "10px 18px",
-                      cursor:
-                        "pointer",
-                    }}
+                    style={{ ...buttonStyle, marginRight: "10px" }}
                   >
                     Save Changes
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setEditingStudent(
-                        null
-                      )
-                    }
-                    style={{
-                      padding:
-                        "10px 18px",
-                      cursor:
-                        "pointer",
-                    }}
+                    onClick={() => setEditingStudent(null)}
+                    style={buttonStyle}
                   >
                     Cancel
                   </button>
-
                 </div>
-
               </form>
-
-            </div>
+            </section>
           )}
-
         </div>
-
       </main>
     );
   }
@@ -1679,6 +969,30 @@ export default function App() {
 // STYLES
 // =========================================================
 
+const cardStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "20px",
+  background: "#ffffff",
+  padding: "20px",
+  borderRadius: "12px",
+};
+
+const sectionHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "15px",
+  marginBottom: "20px",
+};
+
+const formGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+  gap: "15px",
+};
+
 const inputStyle = {
   width: "100%",
   boxSizing: "border-box",
@@ -1688,18 +1002,23 @@ const inputStyle = {
   fontSize: "14px",
 };
 
+const buttonStyle = {
+  padding: "10px 18px",
+  border: "1px solid #ccc",
+  borderRadius: "6px",
+  cursor: "pointer",
+  background: "#ffffff",
+};
+
 const tableHeaderStyle = {
   padding: "12px",
-  borderBottom:
-    "2px solid #ddd",
+  borderBottom: "2px solid #ddd",
   textAlign: "left",
-  whiteSpace:
-    "nowrap",
+  whiteSpace: "nowrap",
 };
 
 const tableCellStyle = {
   padding: "12px",
-  borderBottom:
-    "1px solid #ddd",
+  borderBottom: "1px solid #ddd",
   textAlign: "left",
 };
