@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import Login from "./Login";
 import StudentRegistration from "./StudentRegistration";
@@ -17,11 +16,7 @@ function normalizeApiBaseUrl(rawUrl) {
     url = `https://${url.replace(/^\/+/, "")}`;
   }
 
-  // Remove trailing slashes.
   url = url.replace(/\/+$/, "");
-
-  // Remove a trailing /api if the environment variable contains it.
-  // This prevents /api/api/ in API requests.
   url = url.replace(/\/api$/i, "");
 
   return url;
@@ -136,14 +131,13 @@ export default function App() {
 
       if (!response.ok) {
         const responseText = await response.text();
-        let errorMessage = `Registration failed. Status: ${response.status}`;
+        let errorMessage =
+          `Registration failed. Status: ${response.status}`;
 
         try {
           const data = JSON.parse(responseText);
           errorMessage =
-            data.message ||
-            data.title ||
-            errorMessage;
+            data.message || data.title || errorMessage;
         } catch {
           if (responseText) errorMessage = responseText;
         }
@@ -209,10 +203,11 @@ export default function App() {
       }
 
       if (!data.token) {
-        throw new Error("The server did not return an authentication token.");
+        throw new Error(
+          "The server did not return an authentication token."
+        );
       }
 
-      // Save login details.
       const loggedInUser = {
         token: data.token,
         role: data.role,
@@ -453,7 +448,6 @@ export default function App() {
         course: editingStudent.course,
       };
 
-      // Send a password only if a new one was entered.
       if (editingStudent.password.trim()) {
         updateData.password = editingStudent.password;
       }
@@ -487,7 +481,8 @@ export default function App() {
 
         try {
           const data = JSON.parse(responseText);
-          errorMessage = data.message || data.title || errorMessage;
+          errorMessage =
+            data.message || data.title || errorMessage;
         } catch {
           if (responseText) errorMessage = responseText;
         }
@@ -550,7 +545,8 @@ export default function App() {
 
         try {
           const data = JSON.parse(responseText);
-          errorMessage = data.message || data.title || errorMessage;
+          errorMessage =
+            data.message || data.title || errorMessage;
         } catch {
           if (responseText) errorMessage = responseText;
         }
@@ -595,6 +591,7 @@ export default function App() {
 
     setStudents([]);
     setEditingStudent(null);
+
     setTeacherForm({
       fullName: "",
       email: "",
@@ -648,25 +645,21 @@ export default function App() {
         : "Student Dashboard";
 
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          padding: "30px",
-          background: "#f5f7fb",
-          fontFamily: "Arial, sans-serif",
-        }}
-      >
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          {/* HEADER */}
-          <div style={cardStyle}>
+      <main style={pageStyle}>
+        <div style={dashboardContainerStyle}>
+
+          {/* DASHBOARD HEADER */}
+          <header style={dashboardHeaderStyle}>
             <div>
-              <h1 style={{ margin: "0 0 8px" }}>
+              <h1 style={dashboardTitleStyle}>
                 {dashboardTitle}
               </h1>
-              <p style={{ margin: 0 }}>
+
+              <p style={welcomeTextStyle}>
                 Welcome <strong>{user.fullName}</strong>
               </p>
-              <p style={{ margin: "6px 0 0" }}>
+
+              <p style={roleTextStyle}>
                 Role: <strong>{user.role}</strong>
               </p>
             </div>
@@ -674,26 +667,39 @@ export default function App() {
             <button onClick={logout} style={buttonStyle}>
               Logout
             </button>
-          </div>
+          </header>
 
           {/* MESSAGE */}
           {message && (
-            <div style={{ ...cardStyle, marginTop: "20px" }}>
+            <div style={messageStyle} role="status">
               {message}
             </div>
           )}
 
-          {/* ADMIN / TEACHER STUDENT RECORDS */}
+          {/* ADMIN AND TEACHER STUDENT RECORDS */}
           {canManageStudents && (
-            <section style={{ ...cardStyle, marginTop: "25px" }}>
+            <section style={sectionCardStyle}>
+
+              {/* HEADING AND BUTTON ABOVE THE TABLE */}
               <div style={sectionHeaderStyle}>
-                <h2 style={{ margin: 0 }}>Student Records</h2>
+                <h2 style={sectionTitleStyle}>
+                  Student Records
+                </h2>
+
                 <button
                   onClick={() => loadStudents()}
                   disabled={loadingStudents}
-                  style={buttonStyle}
+                  style={{
+                    ...buttonStyle,
+                    opacity: loadingStudents ? 0.7 : 1,
+                    cursor: loadingStudents
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
                 >
-                  {loadingStudents ? "Loading..." : "View Students"}
+                  {loadingStudents
+                    ? "Loading..."
+                    : "View Students"}
                 </button>
               </div>
 
@@ -702,13 +708,8 @@ export default function App() {
               ) : students.length === 0 ? (
                 <p>No student records found in the database.</p>
               ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                    }}
-                  >
+                <div style={tableWrapperStyle}>
+                  <table style={tableStyle}>
                     <thead>
                       <tr>
                         {[
@@ -721,7 +722,10 @@ export default function App() {
                           "Role",
                           "Actions",
                         ].map((heading) => (
-                          <th key={heading} style={tableHeaderStyle}>
+                          <th
+                            key={heading}
+                            style={tableHeaderStyle}
+                          >
                             {heading}
                           </th>
                         ))}
@@ -734,47 +738,51 @@ export default function App() {
                           <td style={tableCellStyle}>
                             {student.studentId}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.fullName}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.email}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.age}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.mobileNumber}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.course}
                           </td>
+
                           <td style={tableCellStyle}>
                             {student.role}
                           </td>
-                          <td
-                            style={{
-                              ...tableCellStyle,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <button
-                              onClick={() => startEdit(student)}
-                              style={{ ...buttonStyle, marginRight: "8px" }}
-                            >
-                              Update
-                            </button>
 
-                            {isAdmin && (
+                          <td style={actionsCellStyle}>
+                            <div style={actionsContainerStyle}>
                               <button
-                                onClick={() =>
-                                  deleteStudent(student.studentId)
-                                }
+                                onClick={() => startEdit(student)}
                                 style={buttonStyle}
                               >
-                                Delete
+                                Update
                               </button>
-                            )}
+
+                              {isAdmin && (
+                                <button
+                                  onClick={() =>
+                                    deleteStudent(student.studentId)
+                                  }
+                                  style={deleteButtonStyle}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -787,40 +795,53 @@ export default function App() {
 
           {/* STUDENT ACCOUNT */}
           {isStudent && (
-            <section style={{ ...cardStyle, marginTop: "25px" }}>
-              <h2>My Account</h2>
-              <p>
-                <strong>Name:</strong>{" "}
-                {studentProfile.fullName || user.fullName}
-              </p>
-              <p>
-                <strong>Email:</strong>{" "}
-                {studentProfile.email || user.email}
-              </p>
-              <p>
-                <strong>Role:</strong>{" "}
-                {studentProfile.role || user.role}
-              </p>
-              <p>
-                <strong>Course:</strong>{" "}
-                {studentProfile.course || user.course}
-              </p>
-              <p>
-                <strong>Age:</strong>{" "}
-                {studentProfile.age || user.age}
-              </p>
-              <p>
-                <strong>Mobile Number:</strong>{" "}
-                {studentProfile.mobileNumber || user.mobileNumber}
-              </p>
+            <section style={sectionCardStyle}>
+              <h2 style={sectionTitleStyle}>My Account</h2>
+
+              <div style={profileGridStyle}>
+                <ProfileItem
+                  label="Name"
+                  value={studentProfile.fullName || user.fullName}
+                />
+
+                <ProfileItem
+                  label="Email"
+                  value={studentProfile.email || user.email}
+                />
+
+                <ProfileItem
+                  label="Role"
+                  value={studentProfile.role || user.role}
+                />
+
+                <ProfileItem
+                  label="Course"
+                  value={studentProfile.course || user.course}
+                />
+
+                <ProfileItem
+                  label="Age"
+                  value={studentProfile.age || user.age}
+                />
+
+                <ProfileItem
+                  label="Mobile Number"
+                  value={
+                    studentProfile.mobileNumber || user.mobileNumber
+                  }
+                />
+              </div>
             </section>
           )}
 
           {/* ADMIN CREATE TEACHER */}
           {isAdmin && (
-            <section style={{ ...cardStyle, marginTop: "25px" }}>
-              <h2>Create Teacher</h2>
-              <p>Create a Teacher account from the Admin Dashboard.</p>
+            <section style={sectionCardStyle}>
+              <h2 style={sectionTitleStyle}>Create Teacher</h2>
+
+              <p>
+                Create a Teacher account from the Admin Dashboard.
+              </p>
 
               <form onSubmit={createTeacher}>
                 <div style={formGridStyle}>
@@ -861,9 +882,15 @@ export default function App() {
                 <button
                   type="submit"
                   disabled={creatingTeacher}
-                  style={{ ...buttonStyle, marginTop: "16px" }}
+                  style={{
+                    ...buttonStyle,
+                    marginTop: "16px",
+                    opacity: creatingTeacher ? 0.7 : 1,
+                  }}
                 >
-                  {creatingTeacher ? "Creating..." : "Create Teacher"}
+                  {creatingTeacher
+                    ? "Creating..."
+                    : "Create Teacher"}
                 </button>
               </form>
             </section>
@@ -873,9 +900,10 @@ export default function App() {
           {editingStudent && (
             <section
               ref={editFormRef}
-              style={{ ...cardStyle, marginTop: "25px" }}
+              style={sectionCardStyle}
             >
-              <h2>Update Student</h2>
+              <h2 style={sectionTitleStyle}>Update Student</h2>
+
               <p>Editing {editingStudent.fullName}</p>
 
               <form onSubmit={updateStudent}>
@@ -938,10 +966,10 @@ export default function App() {
                   />
                 </div>
 
-                <div style={{ marginTop: "20px" }}>
+                <div style={formActionsStyle}>
                   <button
                     type="submit"
-                    style={{ ...buttonStyle, marginRight: "10px" }}
+                    style={buttonStyle}
                   >
                     Save Changes
                   </button>
@@ -949,7 +977,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setEditingStudent(null)}
-                    style={buttonStyle}
+                    style={secondaryButtonStyle}
                   >
                     Cancel
                   </button>
@@ -966,59 +994,231 @@ export default function App() {
 }
 
 // =========================================================
-// STYLES
+// STUDENT PROFILE ITEM
 // =========================================================
 
-const cardStyle = {
+function ProfileItem({ label, value }) {
+  return (
+    <div style={profileItemStyle}>
+      <span style={profileLabelStyle}>{label}</span>
+      <span style={profileValueStyle}>
+        {value || "Not provided"}
+      </span>
+    </div>
+  );
+}
+
+// =========================================================
+// UI STYLES
+// =========================================================
+
+const pageStyle = {
+  minHeight: "100vh",
+  padding: "30px",
+  background: "#f5f7fb",
+  fontFamily: "Arial, sans-serif",
+  color: "#1f2937",
+  boxSizing: "border-box",
+};
+
+const dashboardContainerStyle = {
+  maxWidth: "1200px",
+  width: "100%",
+  margin: "0 auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: "24px",
+};
+
+const dashboardHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
+  flexWrap: "wrap",
   gap: "20px",
   background: "#ffffff",
-  padding: "20px",
+  padding: "24px",
   borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+  boxSizing: "border-box",
+};
+
+const dashboardTitleStyle = {
+  margin: "0 0 8px",
+  fontSize: "28px",
+  color: "#1f2937",
+};
+
+const welcomeTextStyle = {
+  margin: "0 0 6px",
+  color: "#374151",
+};
+
+const roleTextStyle = {
+  margin: 0,
+  color: "#6b7280",
+};
+
+const sectionCardStyle = {
+  display: "block",
+  width: "100%",
+  minWidth: 0,
+  background: "#ffffff",
+  padding: "24px",
+  borderRadius: "12px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+  boxSizing: "border-box",
+};
+
+const messageStyle = {
+  width: "100%",
+  padding: "16px 20px",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "8px",
+  boxSizing: "border-box",
+  overflowWrap: "anywhere",
 };
 
 const sectionHeaderStyle = {
   display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
+  flexDirection: "column",
+  alignItems: "flex-start",
   gap: "15px",
   marginBottom: "20px",
+  width: "100%",
+};
+
+const sectionTitleStyle = {
+  margin: "0 0 16px",
+  fontSize: "22px",
+  color: "#1f2937",
+};
+
+const tableWrapperStyle = {
+  width: "100%",
+  maxWidth: "100%",
+  overflowX: "auto",
+  border: "1px solid #e5e7eb",
+  borderRadius: "8px",
+};
+
+const tableStyle = {
+  width: "100%",
+  minWidth: "950px",
+  borderCollapse: "collapse",
+  tableLayout: "auto",
+  background: "#ffffff",
+};
+
+const tableHeaderStyle = {
+  padding: "14px 16px",
+  borderBottom: "2px solid #e5e7eb",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+  background: "#f1f5f9",
+  color: "#374151",
+  fontSize: "14px",
+  fontWeight: "600",
+};
+
+const tableCellStyle = {
+  padding: "14px 16px",
+  borderBottom: "1px solid #e5e7eb",
+  textAlign: "left",
+  whiteSpace: "nowrap",
+  verticalAlign: "middle",
+  fontSize: "14px",
+};
+
+const actionsCellStyle = {
+  ...tableCellStyle,
+  whiteSpace: "normal",
+  minWidth: "150px",
+};
+
+const actionsContainerStyle = {
+  display: "flex",
+  alignItems: "center",
+  flexWrap: "wrap",
+  gap: "8px",
 };
 
 const formGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
   gap: "15px",
+  width: "100%",
 };
 
 const inputStyle = {
   width: "100%",
+  minWidth: 0,
   boxSizing: "border-box",
   padding: "11px 12px",
-  border: "1px solid #ccc",
+  border: "1px solid #d1d5db",
   borderRadius: "6px",
   fontSize: "14px",
+  background: "#ffffff",
 };
 
 const buttonStyle = {
   padding: "10px 18px",
-  border: "1px solid #ccc",
+  border: "1px solid #d1d5db",
   borderRadius: "6px",
   cursor: "pointer",
   background: "#ffffff",
-};
-
-const tableHeaderStyle = {
-  padding: "12px",
-  borderBottom: "2px solid #ddd",
-  textAlign: "left",
+  color: "#1f2937",
+  fontSize: "14px",
+  fontWeight: "500",
   whiteSpace: "nowrap",
 };
 
-const tableCellStyle = {
-  padding: "12px",
-  borderBottom: "1px solid #ddd",
-  textAlign: "left",
+const deleteButtonStyle = {
+  ...buttonStyle,
+  color: "#b91c1c",
+  borderColor: "#fecaca",
+  background: "#fff7f7",
+};
+
+const secondaryButtonStyle = {
+  ...buttonStyle,
+  background: "#f3f4f6",
+};
+
+const formActionsStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "10px",
+  marginTop: "20px",
+};
+
+const profileGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: "16px",
+};
+
+const profileItemStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  padding: "16px",
+  border: "1px solid #e5e7eb",
+  borderRadius: "8px",
+  background: "#fafafa",
+  minWidth: 0,
+  overflowWrap: "anywhere",
+};
+
+const profileLabelStyle = {
+  color: "#6b7280",
+  fontSize: "13px",
+};
+
+const profileValueStyle = {
+  color: "#1f2937",
+  fontSize: "15px",
+  fontWeight: "600",
+  overflowWrap: "anywhere",
 };
