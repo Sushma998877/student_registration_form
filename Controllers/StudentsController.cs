@@ -16,7 +16,12 @@ namespace StudentRegistrationAPI.Controllers
             _repository = repository;
         }
 
-        [Authorize(Roles = "Teacher,Admin")]
+        // =====================================================
+        // GET ALL STUDENTS
+        // Student, Teacher and Admin can access
+        // =====================================================
+
+        [Authorize(Roles = "Student,Teacher,Admin")]
         [HttpGet]
         public async Task<IActionResult> GetAllStudents()
         {
@@ -25,7 +30,12 @@ namespace StudentRegistrationAPI.Controllers
             return Ok(students);
         }
 
-        [Authorize(Roles = "Teacher,Admin")]
+        // =====================================================
+        // GET STUDENT BY ID
+        // Student, Teacher and Admin can access
+        // =====================================================
+
+        [Authorize(Roles = "Student,Teacher,Admin")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetStudentById(int id)
         {
@@ -41,6 +51,11 @@ namespace StudentRegistrationAPI.Controllers
 
             return Ok(student);
         }
+
+        // =====================================================
+        // CREATE STUDENT
+        // Anyone can register
+        // =====================================================
 
         [AllowAnonymous]
         [HttpPost]
@@ -68,7 +83,12 @@ namespace StudentRegistrationAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Teacher,Admin")]
+        // =====================================================
+        // UPDATE STUDENT
+        // Student, Teacher and Admin can access
+        // =====================================================
+
+        [Authorize(Roles = "Student,Teacher,Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateStudent(
             int id,
@@ -92,6 +112,11 @@ namespace StudentRegistrationAPI.Controllers
                 message = "Student updated successfully"
             });
         }
+
+        // =====================================================
+        // DELETE STUDENT
+        // Only Admin can delete
+        // =====================================================
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]

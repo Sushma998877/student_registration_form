@@ -89,10 +89,18 @@ namespace StudentRegistrationAPI.Controllers
             // GET JWT SECRET KEY
             // =====================================================
 
+            var jwtKey = _configuration["Jwt:Key"];
+
+            if (string.IsNullOrWhiteSpace(jwtKey) ||
+                Encoding.UTF8.GetByteCount(jwtKey) < 32)
+            {
+                throw new InvalidOperationException(
+                    "JWT signing key is missing or too short."
+                );
+            }
+
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(
-                    _configuration["Jwt:Key"]!
-                )
+                Encoding.UTF8.GetBytes(jwtKey)
             );
 
             // =====================================================

@@ -7,7 +7,6 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(options =>
@@ -43,10 +42,8 @@ builder.Services
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(jwtKey!)
             )
@@ -75,14 +72,23 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+// Avoid redirecting emulator HTTP requests to the development HTTPS certificate.
+if (app.Environment.IsDevelopment() &&
+    !string.Equals(
+        Environment.GetEnvironmentVariable("ASPNETCORE_LAUNCH_PROFILE"),
+        "http",
+        StringComparison.OrdinalIgnoreCase))
+{
+if (!app.Environment.IsDevelopment())
+    {
+        app.UseHttpsRedirection();
+    }
+}
 
 app.UseCors("ReactPolicy");
-
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
-
