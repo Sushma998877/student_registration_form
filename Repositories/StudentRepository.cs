@@ -39,13 +39,13 @@ namespace StudentRegistrationAPI.Repositories
             var connectionStringBuilder =
                 new NpgsqlConnectionStringBuilder(connectionString);
 
-            // Log only host and port. Never log the password.
             _logger.LogInformation(
                 "Database configuration: Host={DatabaseHost}, Port={DatabasePort}",
                 connectionStringBuilder.Host,
                 connectionStringBuilder.Port);
 
-            return new NpgsqlConnection(connectionStringBuilder.ConnectionString);
+            return new NpgsqlConnection(
+                connectionStringBuilder.ConnectionString);
         }
 
         // GET ALL STUDENTS
@@ -58,7 +58,6 @@ namespace StudentRegistrationAPI.Repositories
                     id AS ""StudentId"",
                     fullname AS ""FullName"",
                     email AS ""Email"",
-                    password AS ""Password"",
                     age AS ""Age"",
                     mobilenumber AS ""MobileNumber"",
                     course AS ""Course"",
@@ -79,7 +78,6 @@ namespace StudentRegistrationAPI.Repositories
                     id AS ""StudentId"",
                     fullname AS ""FullName"",
                     email AS ""Email"",
-                    password AS ""Password"",
                     age AS ""Age"",
                     mobilenumber AS ""MobileNumber"",
                     course AS ""Course"",
@@ -198,10 +196,10 @@ namespace StudentRegistrationAPI.Repositories
                 teacher);
         }
 
-        // UPDATE STUDENT
+        // UPDATE STUDENT PROFILE
         public async Task<bool> UpdateStudent(
             int id,
-            StudentCreateDto student)
+            StudentUpdateDto student)
         {
             using var connection = CreateConnection();
 
@@ -210,7 +208,6 @@ namespace StudentRegistrationAPI.Repositories
                 SET
                     fullname = @FullName,
                     email = @Email,
-                    password = @Password,
                     age = @Age,
                     mobilenumber = @MobileNumber,
                     course = @Course
@@ -222,12 +219,11 @@ namespace StudentRegistrationAPI.Repositories
                 new
                 {
                     StudentId = id,
-                    student.FullName,
-                    student.Email,
-                    student.Password,
-                    student.Age,
-                    student.MobileNumber,
-                    student.Course
+                    FullName = student.FullName,
+                    Email = student.Email,
+                    Age = student.Age,
+                    MobileNumber = student.MobileNumber,
+                    Course = student.Course
                 });
 
             return rows > 0;

@@ -1,4 +1,5 @@
-﻿using StudentRegistrationAPI.DTOs;
+﻿
+using StudentRegistrationAPI.DTOs;
 using StudentRegistrationAPI.Models;
 
 namespace StudentRegistrationAPI.Repositories
@@ -17,7 +18,7 @@ namespace StudentRegistrationAPI.Repositories
 
         Task<bool> UpdateStudent(
             int id,
-            StudentCreateDto student
+            StudentUpdateDto student
         );
 
         Task<bool> DeleteStudent(int id);
