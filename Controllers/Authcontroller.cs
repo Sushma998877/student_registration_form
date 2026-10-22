@@ -71,7 +71,7 @@ namespace StudentRegistrationAPI.Controllers
                 }
 
                 // Read JWT configuration from ASP.NET Core configuration.
-                var jwtKey = _configuration["Jwt:Key"];
+                var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
                 var issuer = _configuration["Jwt:Issuer"];
                 var audience = _configuration["Jwt:Audience"];
 

@@ -34,7 +34,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
 // JWT configuration: shared with AuthController
-var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
 var issuer = builder.Configuration["Jwt:Issuer"];
 var audience = builder.Configuration["Jwt:Audience"];
 
