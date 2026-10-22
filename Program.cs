@@ -20,7 +20,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter your JWT token without the Bearer prefix."
+        Description = "Enter your JWT token."
     });
 
     options.AddSecurityRequirement(document =>
@@ -33,7 +33,7 @@ builder.Services.AddSwaggerGen(options =>
 // Dependency Injection
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
-// JWT configuration
+// JWT configuration: shared with AuthController
 var jwtKey = builder.Configuration["Jwt:Key"];
 var issuer = builder.Configuration["Jwt:Issuer"];
 var audience = builder.Configuration["Jwt:Audience"];
@@ -41,7 +41,7 @@ var audience = builder.Configuration["Jwt:Audience"];
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new InvalidOperationException(
-        "JWT signing key is missing. Configure Jwt__Key in your environment.");
+        "JWT signing key is missing. Configure Jwt__Key securely.");
 }
 
 if (string.IsNullOrWhiteSpace(issuer) ||
@@ -51,7 +51,7 @@ if (string.IsNullOrWhiteSpace(issuer) ||
         "JWT issuer or audience is missing. Configure Jwt__Issuer and Jwt__Audience.");
 }
 
-// Validate the Base64 signing key
+// Decode and validate the Base64 signing key
 byte[] keyBytes;
 
 try

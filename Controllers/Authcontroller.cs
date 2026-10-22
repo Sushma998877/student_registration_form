@@ -47,10 +47,6 @@ namespace StudentRegistrationAPI.Controllers
                 var student =
                     await _repository.GetStudentByEmail(email);
 
-                _logger.LogInformation(
-                    "Login lookup completed. User found: {UserFound}",
-                    student != null);
-
                 if (student == null)
                 {
                     _logger.LogWarning(
@@ -62,16 +58,12 @@ namespace StudentRegistrationAPI.Controllers
                     });
                 }
 
-                // Preserve existing direct password comparison.
-                // No password hashing is added.
+                // Preserves your existing password comparison.
+                // For production, use securely hashed passwords.
                 bool passwordMatches = string.Equals(
                     student.Password,
                     login.Password,
                     StringComparison.Ordinal);
-
-                _logger.LogInformation(
-                    "Password values match: {Matches}",
-                    passwordMatches);
 
                 if (!passwordMatches)
                 {
@@ -84,34 +76,17 @@ namespace StudentRegistrationAPI.Controllers
                     });
                 }
 
-                // Use the same configuration key as Program.cs.
+                // Read the same JWT settings used by Program.cs.
                 var jwtKey = _configuration["Jwt:Key"];
                 var issuer = _configuration["Jwt:Issuer"];
                 var audience = _configuration["Jwt:Audience"];
 
-                _logger.LogInformation(
-                    "JWT signing key available: {Available}",
-                    !string.IsNullOrWhiteSpace(jwtKey));
-
-                if (string.IsNullOrWhiteSpace(jwtKey))
-                {
-                    _logger.LogError(
-                        "JWT signing key is not configured.");
-
-                    return StatusCode(
-                        StatusCodes.Status500InternalServerError,
-                        new
-                        {
-                            message =
-                                "Authentication is temporarily unavailable."
-                        });
-                }
-
-                if (string.IsNullOrWhiteSpace(issuer) ||
+                if (string.IsNullOrWhiteSpace(jwtKey) ||
+                    string.IsNullOrWhiteSpace(issuer) ||
                     string.IsNullOrWhiteSpace(audience))
                 {
                     _logger.LogError(
-                        "JWT issuer or audience is not configured.");
+                        "JWT configuration is incomplete.");
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
@@ -132,7 +107,7 @@ namespace StudentRegistrationAPI.Controllers
                 {
                     _logger.LogError(
                         ex,
-                        "JWT signing key is not valid Base64.");
+                        "JWT signing key configuration is invalid.");
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
@@ -157,8 +132,8 @@ namespace StudentRegistrationAPI.Controllers
                         });
                 }
 
-                var signingKey =
-                    new SymmetricSecurityKey(keyBytes);
+                // Sign the token with the same key used by Program.cs.
+                var signingKey = new SymmetricSecurityKey(keyBytes);
 
                 var credentials = new SigningCredentials(
                     signingKey,
