@@ -49,17 +49,14 @@ namespace StudentRegistrationAPI.Controllers
 
                 if (student == null)
                 {
-                    _logger.LogWarning(
-                        "Login failed because no matching account was found.");
-
                     return Unauthorized(new
                     {
                         message = "Invalid email or password."
                     });
                 }
 
-                // Preserves your existing password comparison.
-                // For production, use securely hashed passwords.
+                // Preserves existing password comparison.
+                // Replace with password hashing before production.
                 bool passwordMatches = string.Equals(
                     student.Password,
                     login.Password,
@@ -67,16 +64,13 @@ namespace StudentRegistrationAPI.Controllers
 
                 if (!passwordMatches)
                 {
-                    _logger.LogWarning(
-                        "Login failed because the password did not match.");
-
                     return Unauthorized(new
                     {
                         message = "Invalid email or password."
                     });
                 }
 
-                // Read the same JWT settings used by Program.cs.
+                // Read JWT configuration from ASP.NET Core configuration.
                 var jwtKey = _configuration["Jwt:Key"];
                 var issuer = _configuration["Jwt:Issuer"];
                 var audience = _configuration["Jwt:Audience"];
@@ -86,14 +80,14 @@ namespace StudentRegistrationAPI.Controllers
                     string.IsNullOrWhiteSpace(audience))
                 {
                     _logger.LogError(
-                        "JWT configuration is incomplete.");
+                        "JWT configuration is missing or incomplete.");
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
                         new
                         {
                             message =
-                                "Authentication is temporarily unavailable."
+                                "Authentication configuration is unavailable."
                         });
                 }
 
@@ -107,33 +101,33 @@ namespace StudentRegistrationAPI.Controllers
                 {
                     _logger.LogError(
                         ex,
-                        "JWT signing key configuration is invalid.");
+                        "JWT signing key is not valid Base64.");
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
                         new
                         {
                             message =
-                                "Authentication is temporarily unavailable."
+                                "Authentication configuration is invalid."
                         });
                 }
 
                 if (keyBytes.Length < 32)
                 {
                     _logger.LogError(
-                        "JWT signing key is shorter than 256 bits.");
+                        "JWT signing key must contain at least 256 bits.");
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
                         new
                         {
                             message =
-                                "Authentication is temporarily unavailable."
+                                "Authentication configuration is invalid."
                         });
                 }
 
-                // Sign the token with the same key used by Program.cs.
-                var signingKey = new SymmetricSecurityKey(keyBytes);
+                var signingKey =
+                    new SymmetricSecurityKey(keyBytes);
 
                 var credentials = new SigningCredentials(
                     signingKey,
@@ -162,19 +156,18 @@ namespace StudentRegistrationAPI.Controllers
                         role)
                 };
 
+                var now = DateTime.UtcNow;
+
                 var token = new JwtSecurityToken(
                     issuer: issuer,
                     audience: audience,
                     claims: claims,
-                    notBefore: DateTime.UtcNow,
-                    expires: DateTime.UtcNow.AddHours(2),
+                    notBefore: now,
+                    expires: now.AddHours(2),
                     signingCredentials: credentials);
 
                 var jwtToken =
                     new JwtSecurityTokenHandler().WriteToken(token);
-
-                _logger.LogInformation(
-                    "Login succeeded for the matched account.");
 
                 return Ok(new
                 {
