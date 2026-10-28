@@ -18,7 +18,9 @@ function normalizeApiBaseUrl(rawUrl) {
     url = `https://${url.replace(/^\/+/, "")}`;
   }
 
-  url = url.replace(/\/+$/, "");
+  while (url.endsWith("/")) {
+    url = url.slice(0, -1);
+  }
   url = url.replace(/\/api$/i, "");
 
   return url;
@@ -31,6 +33,10 @@ const apiBaseUrl = normalizeApiBaseUrl(
 const apiUrl = `${apiBaseUrl}/api/Students`;
 const loginUrl = `${apiBaseUrl}/api/Auth/login`;
 const teacherUrl = `${apiBaseUrl}/api/Users/create-teacher`;
+
+function isUnauthenticatedPage(page, targetPage, user) {
+  return page === targetPage && !user;
+}
 
 // =========================================================
 // APP
@@ -633,7 +639,7 @@ export default function App() {
   // REGISTRATION PAGE
   // =========================================================
 
-  if (page === "register" && !user) {
+  if (isUnauthenticatedPage(page, "register", user)) {
     return (
       <>
         <ToastNotification
@@ -653,7 +659,7 @@ export default function App() {
   // LOGIN PAGE
   // =========================================================
 
-  if (page === "login" && !user) {
+  if (isUnauthenticatedPage(page, "login", user)) {
     return (
       <>
         <ToastNotification
@@ -679,11 +685,8 @@ export default function App() {
     const isStudent = user.role === "Student";
     const canManageStudents = isAdmin || isTeacher;
 
-    const dashboardTitle = isAdmin
-      ? "Admin Dashboard"
-      : isTeacher
-        ? "Teacher Dashboard"
-        : "Student Dashboard";
+    const dashboardTitle =
+      dashboardTitles[user.role] || "Student Dashboard";
 
     return (
       <main
@@ -722,9 +725,9 @@ export default function App() {
 
           {/* MESSAGE */}
           {message && (
-            <div style={messageStyle} role="status">
+            <output style={messageStyle}>
               {message}
-            </div>
+            </output>
           )}
 
           {/* ADMIN AND TEACHER STUDENT RECORDS */}
@@ -752,93 +755,13 @@ export default function App() {
                 </button>
               </div>
 
-              {loadingStudents ? (
-                <p>Loading students from database...</p>
-              ) : students.length === 0 ? (
-                <p>No student records found in the database.</p>
-              ) : (
-                <div style={tableWrapperStyle}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        {[
-                          "ID",
-                          "Full Name",
-                          "Email",
-                          "Age",
-                          "Mobile",
-                          "Course",
-                          "Role",
-                          "Actions",
-                        ].map((heading) => (
-                          <th
-                            key={heading}
-                            style={tableHeaderStyle}
-                          >
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {students.map((student) => (
-                        <tr key={student.studentId}>
-                          <td style={tableCellStyle}>
-                            {student.studentId}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.fullName}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.email}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.age}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.mobileNumber}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.course}
-                          </td>
-
-                          <td style={tableCellStyle}>
-                            {student.role}
-                          </td>
-
-                          <td style={actionsCellStyle}>
-                            <div style={actionsContainerStyle}>
-                              <button
-                                onClick={() => startEdit(student)}
-                                style={buttonStyle}
-                              >
-                                Update
-                              </button>
-
-                              {isAdmin && (
-                                <button
-                                  onClick={() =>
-                                    deleteStudent(student.studentId)
-                                  }
-                                  style={deleteButtonStyle}
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <StudentRecordsContent
+                isAdmin={isAdmin}
+                students={students}
+                loading={loadingStudents}
+                onDelete={deleteStudent}
+                onEdit={startEdit}
+              />
             </section>
           )}
 
@@ -1047,9 +970,89 @@ function ProfileItem({ label, value }) {
   );
 }
 
+function StudentRecordsContent({
+  isAdmin,
+  students,
+  loading,
+  onDelete,
+  onEdit,
+}) {
+  if (loading) {
+    return <p>Loading students from database...</p>;
+  }
+
+  if (students.length === 0) {
+    return <p>No student records found in the database.</p>;
+  }
+
+  return (
+    <div style={tableWrapperStyle}>
+      <table style={tableStyle}>
+        <thead>
+          <tr>
+            {[
+              "ID",
+              "Full Name",
+              "Email",
+              "Age",
+              "Mobile",
+              "Course",
+              "Role",
+              "Actions",
+            ].map((heading) => (
+              <th key={heading} style={tableHeaderStyle}>
+                {heading}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {students.map((student) => (
+            <tr key={student.studentId}>
+              <td style={tableCellStyle}>{student.studentId}</td>
+              <td style={tableCellStyle}>{student.fullName}</td>
+              <td style={tableCellStyle}>{student.email}</td>
+              <td style={tableCellStyle}>{student.age}</td>
+              <td style={tableCellStyle}>{student.mobileNumber}</td>
+              <td style={tableCellStyle}>{student.course}</td>
+              <td style={tableCellStyle}>{student.role}</td>
+              <td style={actionsCellStyle}>
+                <div style={actionsContainerStyle}>
+                  <button
+                    onClick={() => onEdit(student)}
+                    style={buttonStyle}
+                  >
+                    Update
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => onDelete(student.studentId)}
+                      style={deleteButtonStyle}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // =========================================================
 // UI STYLES
 // =========================================================
+
+const dashboardTitles = {
+  Admin: "Admin Dashboard",
+  Teacher: "Teacher Dashboard",
+  Student: "Student Dashboard",
+};
 
 const pageStyle = {
   minHeight: "100vh",
