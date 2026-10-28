@@ -38,14 +38,17 @@ jobs:
       - name: Verify coverage report
         run: test -s coverage/lcov.info
 
+     
       - name: Debug coverage report
         run: |
-          echo "Checking LCOV report"
-          head -n 20 coverage/lcov.info
-          echo "Checking App.jsx paths"
-          grep '^SF:.*App.jsx$' coverage/lcov.info
-          echo "Checking report file path"
-          pwd
+          echo "Checking LCOV report exists"
+          ls -lh coverage/lcov.info
+
+          echo "Checking line coverage records"
+          grep -E '^(DA:|LF:|LH:)' coverage/lcov.info | head -n 30
+
+          echo "Checking coverage summary"
+          tail -n 30 coverage/lcov.info
 
       - name: Run SonarQube Cloud analysis
         uses: SonarSource/sonarqube-scan-action@v7
