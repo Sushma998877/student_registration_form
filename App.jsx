@@ -700,7 +700,7 @@ export default function App() {
         />
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           {/* HEADER */}
-          <div style={cardStyle}>
+          <header style={dashboardHeaderStyle}>
             <div>
               <h1 style={dashboardTitleStyle}>
                 {dashboardTitle}
@@ -1117,11 +1117,6 @@ const messageStyle = {
   borderRadius: "8px",
   boxSizing: "border-box",
   overflowWrap: "anywhere",
-};
-
-const sectionCardStyle = {
-  ...cardStyle,
-  display: "block",
 };
 
 const sectionHeaderStyle = {
