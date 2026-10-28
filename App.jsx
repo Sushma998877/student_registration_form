@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Login from "./Login";
 import StudentRegistration from "./StudentRegistration";
+import ToastNotification from "./ToastNotification";
 
 // =========================================================
 // API CONFIGURATION
@@ -86,7 +88,19 @@ export default function App() {
 
   const [creatingTeacher, setCreatingTeacher] = useState(false);
   const [message, setMessage] = useState("");
+  const [notification, setNotification] = useState(null);
   const editFormRef = useRef(null);
+
+  const showToast = useCallback((toastMessage, type = "success") => {
+    setNotification({
+      message: toastMessage,
+      type,
+    });
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    setNotification(null);
+  }, []);
 
   // Scroll to the edit form when a student is selected.
   useEffect(() => {
@@ -146,6 +160,7 @@ export default function App() {
       }
 
       setMessage("");
+      showToast("Registration successful. You can now sign in.");
       setPage("login");
     } catch (error) {
       console.error("Registration error:", error);
@@ -235,6 +250,9 @@ export default function App() {
       });
 
       setMessage("");
+      showToast(
+        `Login successful. Welcome back, ${loggedInUser.fullName || loggedInUser.role}.`
+      );
       setPage("dashboard");
     } catch (error) {
       console.error("Login error:", error);
@@ -377,11 +395,12 @@ export default function App() {
         password: "",
       });
 
-      setMessage("Teacher account created successfully.");
+      showToast("Teacher account created successfully.");
     } catch (error) {
       console.error("Create teacher error:", error);
-      setMessage(
-        error.message || "Unable to create teacher account."
+      showToast(
+        error.message || "Unable to create teacher account.",
+        "error"
       );
     } finally {
       setCreatingTeacher(false);
@@ -491,10 +510,14 @@ export default function App() {
       }
 
       setEditingStudent(null);
-      await loadStudents(token, "Student updated successfully.");
+      showToast("Student updated successfully.");
+      await loadStudents(token);
     } catch (error) {
       console.error("Update student error:", error);
-      setMessage(error.message || "Unable to update student.");
+      showToast(
+        error.message || "Unable to update student.",
+        "error"
+      );
     }
   }
 
@@ -555,10 +578,14 @@ export default function App() {
       }
 
       setEditingStudent(null);
-      await loadStudents(token, "Student deleted successfully.");
+      showToast("Student deleted successfully.");
+      await loadStudents(token);
     } catch (error) {
       console.error("Delete student error:", error);
-      setMessage(error.message || "Unable to delete student.");
+      showToast(
+        error.message || "Unable to delete student.",
+        "error"
+      );
     }
   }
 
@@ -608,10 +635,17 @@ export default function App() {
 
   if (page === "register" && !user) {
     return (
-      <StudentRegistration
-        onRegistered={handleRegistration}
-        onLogin={() => setPage("login")}
-      />
+      <>
+        <ToastNotification
+          notification={notification}
+          onDismiss={dismissToast}
+        />
+        <StudentRegistration
+          onRegistered={handleRegistration}
+          onLogin={() => setPage("login")}
+          onNotify={showToast}
+        />
+      </>
     );
   }
 
@@ -621,10 +655,17 @@ export default function App() {
 
   if (page === "login" && !user) {
     return (
-      <Login
-        onSubmit={handleLogin}
-        onRegister={() => setPage("register")}
-      />
+      <>
+        <ToastNotification
+          notification={notification}
+          onDismiss={dismissToast}
+        />
+        <Login
+          onSubmit={handleLogin}
+          onRegister={() => setPage("register")}
+          onNotify={showToast}
+        />
+      </>
     );
   }
 
@@ -645,11 +686,21 @@ export default function App() {
         : "Student Dashboard";
 
     return (
-      <main style={pageStyle}>
-        <div style={dashboardContainerStyle}>
-
-          {/* DASHBOARD HEADER */}
-          <header style={dashboardHeaderStyle}>
+      <main
+        style={{
+          minHeight: "100vh",
+          padding: "30px",
+          background: "#f5f7fb",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <ToastNotification
+          notification={notification}
+          onDismiss={dismissToast}
+        />
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          {/* HEADER */}
+          <div style={cardStyle}>
             <div>
               <h1 style={dashboardTitleStyle}>
                 {dashboardTitle}
@@ -678,9 +729,7 @@ export default function App() {
 
           {/* ADMIN AND TEACHER STUDENT RECORDS */}
           {canManageStudents && (
-            <section style={sectionCardStyle}>
-
-              {/* HEADING AND BUTTON ABOVE THE TABLE */}
+            <section style={{ ...sectionCardStyle, marginTop: "25px" }}>
               <div style={sectionHeaderStyle}>
                 <h2 style={sectionTitleStyle}>
                   Student Records
@@ -795,42 +844,32 @@ export default function App() {
 
           {/* STUDENT ACCOUNT */}
           {isStudent && (
-            <section style={sectionCardStyle}>
-              <h2 style={sectionTitleStyle}>My Account</h2>
-
-              <div style={profileGridStyle}>
-                <ProfileItem
-                  label="Name"
-                  value={studentProfile.fullName || user.fullName}
-                />
-
-                <ProfileItem
-                  label="Email"
-                  value={studentProfile.email || user.email}
-                />
-
-                <ProfileItem
-                  label="Role"
-                  value={studentProfile.role || user.role}
-                />
-
-                <ProfileItem
-                  label="Course"
-                  value={studentProfile.course || user.course}
-                />
-
-                <ProfileItem
-                  label="Age"
-                  value={studentProfile.age || user.age}
-                />
-
-                <ProfileItem
-                  label="Mobile Number"
-                  value={
-                    studentProfile.mobileNumber || user.mobileNumber
-                  }
-                />
-              </div>
+            <section style={{ ...sectionCardStyle, marginTop: "25px" }}>
+              <h2>My Account</h2>
+              <p>
+                <strong>Name:</strong>{" "}
+                {studentProfile.fullName || user.fullName}
+              </p>
+              <p>
+                <strong>Email:</strong>{" "}
+                {studentProfile.email || user.email}
+              </p>
+              <p>
+                <strong>Role:</strong>{" "}
+                {studentProfile.role || user.role}
+              </p>
+              <p>
+                <strong>Course:</strong>{" "}
+                {studentProfile.course || user.course}
+              </p>
+              <p>
+                <strong>Age:</strong>{" "}
+                {studentProfile.age || user.age}
+              </p>
+              <p>
+                <strong>Mobile Number:</strong>{" "}
+                {studentProfile.mobileNumber || user.mobileNumber}
+              </p>
             </section>
           )}
 
@@ -900,7 +939,7 @@ export default function App() {
           {editingStudent && (
             <section
               ref={editFormRef}
-              style={sectionCardStyle}
+              style={{ ...sectionCardStyle, marginTop: "25px" }}
             >
               <h2 style={sectionTitleStyle}>Update Student</h2>
 
@@ -1078,6 +1117,11 @@ const messageStyle = {
   borderRadius: "8px",
   boxSizing: "border-box",
   overflowWrap: "anywhere",
+};
+
+const sectionCardStyle = {
+  ...cardStyle,
+  display: "block",
 };
 
 const sectionHeaderStyle = {

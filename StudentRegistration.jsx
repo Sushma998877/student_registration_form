@@ -11,7 +11,11 @@ const initialForm = {
   course: "",
 };
 
-export default function StudentRegistration({ onRegistered, onLogin }) {
+export default function StudentRegistration({
+  onRegistered,
+  onLogin,
+  onNotify,
+}) {
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -28,24 +32,30 @@ export default function StudentRegistration({ onRegistered, onLogin }) {
     setMessage("");
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  
+async function handleSubmit(event) {
+  event.preventDefault();
 
-    setMessage("");
+  setMessage("");
+  setIsError(false);
+  setIsLoading(true);
+
+  try {
+    await onRegistered?.(form);
+
+    setForm(initialForm);
     setIsError(false);
-    setIsLoading(true);
+    setMessage("Registration successful.");
+  } catch (error) {
+    const errorMessage = error.message || "Registration failed.";
 
-    try {
-      await onRegistered?.(form);
-
-      setForm(initialForm);
-    } catch (error) {
-      setIsError(true);
-      setMessage(error.message || "Registration failed.");
-    } finally {
-      setIsLoading(false);
-    }
+    setIsError(true);
+    onNotify?.(errorMessage, "error");
+    if (!onNotify) setMessage(errorMessage);
+  } finally {
+    setIsLoading(false);
   }
+}
 
   return (
     <main className="registration-page">
@@ -203,5 +213,4 @@ export default function StudentRegistration({ onRegistered, onLogin }) {
     </main>
   );
 }
-
 

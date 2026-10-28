@@ -7,7 +7,7 @@ const initialForm = {
   password: "",
 };
 
-export default function Login({ onSubmit, onRegister }) {
+export default function Login({ onSubmit, onRegister, onNotify }) {
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -41,11 +41,12 @@ export default function Login({ onSubmit, onRegister }) {
         "Login successful. Welcome to your student account."
       );
     } catch (error) {
-      setIsError(true);
+      const errorMessage =
+        error.message || "Login failed. Please try again.";
 
-      setMessage(
-        error.message || "Login failed. Please try again."
-      );
+      setIsError(true);
+      onNotify?.(errorMessage, "error");
+      if (!onNotify) setMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -143,4 +144,3 @@ export default function Login({ onSubmit, onRegister }) {
     </main>
   );
 }
-
