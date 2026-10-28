@@ -42,6 +42,8 @@ jobs:
         run: |
           echo "Checking LCOV report"
           head -n 20 coverage/lcov.info
+          echo "Checking App.jsx paths"
+          grep '^SF:.*App.jsx$' coverage/lcov.info
           echo "Checking report file path"
           pwd
 
