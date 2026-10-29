@@ -1,4 +1,3 @@
-
 import {
   coverageConfigDefaults,
   defineConfig,
