@@ -31,7 +31,7 @@ jobs:
           node-version: 22
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Fix Vite permissions
         run: chmod +x ./node_modules/.bin/vite
