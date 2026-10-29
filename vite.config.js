@@ -1,3 +1,4 @@
+
 import {
   coverageConfigDefaults,
   defineConfig,
@@ -22,12 +23,15 @@ export default defineConfig({
       reportsDirectory: "./coverage",
 
       include: [
-        "src/**/*.{js,jsx}",
+        "*.jsx",
+        "src/**/*.jsx",
+        "src/**/*.js",
       ],
 
       exclude: [
         ...coverageConfigDefaults.exclude,
         "src/Tests/**",
+        "*.test.jsx",
       ],
     },
   },
