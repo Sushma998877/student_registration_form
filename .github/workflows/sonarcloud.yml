@@ -38,7 +38,6 @@ jobs:
       - name: Verify coverage report
         run: test -s coverage/lcov.info
 
-     
       - name: Debug coverage report
         run: |
           echo "Checking LCOV report exists"
@@ -49,6 +48,20 @@ jobs:
 
           echo "Checking coverage summary"
           tail -n 30 coverage/lcov.info
+
+      - name: Debug LCOV source paths
+        run: |
+          echo "=== LCOV file entries ==="
+          grep '^SF:' coverage/lcov.info | head -n 50
+
+          echo "=== Source files in repository ==="
+          find . -type f \( -name '*.jsx' -o -name '*.js' \) \
+            -not -path './node_modules/*' \
+            -not -path './coverage/*' \
+            -not -path './.git/*' | sort
+
+          echo "=== Sonar configuration ==="
+          cat sonar-project.properties
 
       - name: Run SonarQube Cloud analysis
         uses: SonarSource/sonarqube-scan-action@c7ee0f9df90b7aa20e8dcf9695dcfe2e7da5b4f2 # v7.2.1
