@@ -22,9 +22,6 @@ export default defineConfig({
       reportsDirectory: "./coverage",
 
       include: [
-        "App.jsx",
-        "Login.jsx",
-        "StudentRegistration.jsx",
         "src/**/*.{js,jsx}",
       ],
 
