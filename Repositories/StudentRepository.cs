@@ -29,6 +29,12 @@ namespace StudentRegistrationAPI.Repositories
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {
+                connectionString = Environment.GetEnvironmentVariable(
+                    "POSTGRESQLCONNSTR_DefaultConnection");
+            }
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
                 _logger.LogError(
                     "Database connection string DefaultConnection is missing.");
 
@@ -64,6 +70,46 @@ namespace StudentRegistrationAPI.Repositories
                     role AS ""Role""
                 FROM students
                 WHERE role = 'Student'";
+
+            return await connection.QueryAsync<Student>(sql);
+        }
+
+        // GET ALL ADMINS
+        public async Task<IEnumerable<Student>> GetAllAdmins()
+        {
+            using var connection = CreateConnection();
+
+            string sql = @"
+                SELECT
+                    id AS ""StudentId"",
+                    fullname AS ""FullName"",
+                    email AS ""Email"",
+                    age AS ""Age"",
+                    mobilenumber AS ""MobileNumber"",
+                    course AS ""Course"",
+                    role AS ""Role""
+                FROM students
+                WHERE LOWER(role) = 'admin'";
+
+            return await connection.QueryAsync<Student>(sql);
+        }
+
+        // GET ALL TEACHERS
+        public async Task<IEnumerable<Student>> GetAllTeachers()
+        {
+            using var connection = CreateConnection();
+
+            string sql = @"
+                SELECT
+                    id AS ""StudentId"",
+                    fullname AS ""FullName"",
+                    email AS ""Email"",
+                    age AS ""Age"",
+                    mobilenumber AS ""MobileNumber"",
+                    course AS ""Course"",
+                    role AS ""Role""
+                FROM students
+                WHERE LOWER(role) = 'teacher'";
 
             return await connection.QueryAsync<Student>(sql);
         }

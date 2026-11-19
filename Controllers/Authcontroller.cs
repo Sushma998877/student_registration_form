@@ -30,33 +30,56 @@ namespace StudentRegistrationAPI.Controllers
         public async Task<IActionResult> Login(
             [FromBody] LoginDto login)
         {
+            _logger.LogInformation(
+                "Login request received.");
+
             if (login == null ||
                 string.IsNullOrWhiteSpace(login.Email) ||
                 string.IsNullOrEmpty(login.Password))
             {
+                _logger.LogWarning(
+                    "Login request rejected because required fields are missing.");
+
                 return BadRequest(new
                 {
                     message = "Email and password are required."
                 });
             }
 
+            string stage = "Starting login";
+
             try
             {
                 string email = login.Email.Trim();
+
+                // STEP 1: Retrieve the student from PostgreSQL.
+                stage = "Database lookup";
+
+                _logger.LogInformation(
+                    "Starting database lookup for login.");
 
                 var student =
                     await _repository.GetStudentByEmail(email);
 
                 if (student == null)
                 {
+                    _logger.LogWarning(
+                        "Login failed because no matching account was found.");
+
                     return Unauthorized(new
                     {
                         message = "Invalid email or password."
                     });
                 }
 
-                // Preserves existing password comparison.
-                // Replace with password hashing before production.
+                _logger.LogInformation(
+                    "Database lookup completed successfully.");
+
+                // STEP 2: Validate the password.
+                stage = "Password validation";
+
+                // Preserves the existing password comparison.
+                // Use password hashing before production.
                 bool passwordMatches = string.Equals(
                     student.Password,
                     login.Password,
@@ -64,14 +87,24 @@ namespace StudentRegistrationAPI.Controllers
 
                 if (!passwordMatches)
                 {
+                    _logger.LogWarning(
+                        "Login failed because password validation was unsuccessful.");
+
                     return Unauthorized(new
                     {
                         message = "Invalid email or password."
                     });
                 }
 
-                // Read JWT configuration from ASP.NET Core configuration.
-                var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+                _logger.LogInformation(
+                    "Password validation succeeded.");
+
+                // STEP 3: Read JWT configuration.
+                stage = "JWT configuration";
+
+                var jwtKey =
+                    Environment.GetEnvironmentVariable("JWT_KEY");
+
                 var issuer = _configuration["Jwt:Issuer"];
                 var audience = _configuration["Jwt:Audience"];
 
@@ -80,7 +113,13 @@ namespace StudentRegistrationAPI.Controllers
                     string.IsNullOrWhiteSpace(audience))
                 {
                     _logger.LogError(
-                        "JWT configuration is missing or incomplete.");
+                        "JWT configuration is missing. " +
+                        "KeyPresent={KeyPresent}, " +
+                        "IssuerPresent={IssuerPresent}, " +
+                        "AudiencePresent={AudiencePresent}",
+                        !string.IsNullOrWhiteSpace(jwtKey),
+                        !string.IsNullOrWhiteSpace(issuer),
+                        !string.IsNullOrWhiteSpace(audience));
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
@@ -90,6 +129,9 @@ namespace StudentRegistrationAPI.Controllers
                                 "Authentication configuration is unavailable."
                         });
                 }
+
+                // STEP 4: Validate the Base64 signing key.
+                stage = "JWT signing key validation";
 
                 byte[] keyBytes;
 
@@ -115,7 +157,9 @@ namespace StudentRegistrationAPI.Controllers
                 if (keyBytes.Length < 32)
                 {
                     _logger.LogError(
-                        "JWT signing key must contain at least 256 bits.");
+                        "JWT signing key is too short. " +
+                        "DecodedLength={Length}",
+                        keyBytes.Length);
 
                     return StatusCode(
                         StatusCodes.Status500InternalServerError,
@@ -125,6 +169,12 @@ namespace StudentRegistrationAPI.Controllers
                                 "Authentication configuration is invalid."
                         });
                 }
+
+                _logger.LogInformation(
+                    "JWT signing key validation succeeded.");
+
+                // STEP 5: Generate the JWT token.
+                stage = "JWT token generation";
 
                 var signingKey =
                     new SymmetricSecurityKey(keyBytes);
@@ -169,7 +219,11 @@ namespace StudentRegistrationAPI.Controllers
                 var jwtToken =
                     new JwtSecurityTokenHandler().WriteToken(token);
 
-                return Ok(new
+                _logger.LogInformation(
+                    "JWT token generated successfully.");
+
+                // STEP 6: Return the existing login response.
+                var response = new
                 {
                     token = jwtToken,
                     studentId = student.StudentId,
@@ -179,13 +233,19 @@ namespace StudentRegistrationAPI.Controllers
                     mobileNumber = student.MobileNumber,
                     course = student.Course,
                     role = role
-                });
+                };
+
+                _logger.LogInformation(
+                    "Login completed successfully.");
+
+                return Ok(response);
             }
             catch (Exception ex)
             {
                 _logger.LogError(
                     ex,
-                    "An error occurred during login.");
+                    "Login failed at stage {Stage}.",
+                    stage);
 
                 return StatusCode(
                     StatusCodes.Status500InternalServerError,

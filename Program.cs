@@ -6,11 +6,17 @@ using StudentRegistrationAPI.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers
+// 1. Configure logging for local development and Azure App Service
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.AddAzureWebAppDiagnostics();
+
+// 2. Register controllers
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger configuration with JWT Bearer authentication
+// 3. Configure Swagger with JWT Bearer authentication
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -30,10 +36,10 @@ builder.Services.AddSwaggerGen(options =>
         });
 });
 
-// Dependency Injection
+// 4. Register repository dependency injection
 builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
-// JWT configuration: shared with AuthController
+// 5. Read JWT configuration
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
 var issuer = builder.Configuration["Jwt:Issuer"];
 var audience = builder.Configuration["Jwt:Audience"];
@@ -41,17 +47,17 @@ var audience = builder.Configuration["Jwt:Audience"];
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
     throw new InvalidOperationException(
-        "JWT signing key is missing. Configure Jwt__Key securely.");
+        "JWT signing key is missing. Configure JWT_KEY securely.");
 }
 
 if (string.IsNullOrWhiteSpace(issuer) ||
     string.IsNullOrWhiteSpace(audience))
 {
     throw new InvalidOperationException(
-        "JWT issuer or audience is missing. Configure Jwt__Issuer and Jwt__Audience.");
+        "JWT issuer or audience is missing. Configure Jwt:Issuer and Jwt:Audience.");
 }
 
-// Decode and validate the Base64 signing key
+// 6. Validate the Base64 JWT signing key
 byte[] keyBytes;
 
 try
@@ -70,7 +76,7 @@ if (keyBytes.Length < 32)
         "JWT signing key must decode to at least 32 bytes (256 bits).");
 }
 
-// Authentication
+// 7. Configure JWT authentication
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -91,18 +97,25 @@ builder.Services
         };
     });
 
-// Authorization
+// 8. Configure authorization
 builder.Services.AddAuthorization();
 
-// CORS configuration for React frontend
+//cache memory
+builder.Services.AddMemoryCache();
+
+// 9. Configure CORS for the React frontend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactPolicy", policy =>
     {
         policy
             .WithOrigins(
+                "http://localhost:4173",
                 "http://localhost:5173",
                 "http://localhost:5174",
+                "http://localhost:5175",
+                "http://127.0.0.1:4173",
+                "http://127.0.0.1:5173",
                 "http://127.0.0.1:5174",
                 "http://127.0.0.1:5175",
                 "https://salmon-rock-016eb6310.4.azurestaticapps.net",
@@ -115,24 +128,40 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Swagger
+// 10. Create a logger for application lifecycle messages
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+// 11. Configure Swagger
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// HTTPS redirection in production
+// 12. Redirect HTTP to HTTPS outside development
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 
-// Middleware pipeline
+// 13. Configure middleware in the correct order
 app.UseRouting();
 
+// CORS must run before authentication and authorization
 app.UseCors("ReactPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 14. Map controller endpoints
 app.MapControllers();
+
+// 15. Log application startup
+logger.LogInformation(
+    "Student Registration API is starting.");
+
+// 16. Log application shutdown
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    logger.LogInformation(
+        "Student Registration API is stopping.");
+});
 
 app.Run();
